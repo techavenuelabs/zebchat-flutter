@@ -1,0 +1,70 @@
+// Android side of package:zebchat_flutter. Groovy and the classic plugin setup on purpose, so it
+// builds in older host apps (Flutter 3.22+, AGP 8, Kotlin plugin applied by the app) as well as in
+// current ones (Flutter 3.44+, AGP 9). The host's AGP and Kotlin versions win over the ones below.
+group = "com.zebchat.flutter"
+version = "1.0.0"
+
+buildscript {
+    // Used only when the host app has no Kotlin Gradle plugin of its own. The native SDK
+    // (com.zebchat:chat) needs Kotlin 1.9.20 or newer to read its metadata.
+    ext.zebchat_kotlin_version = "2.1.21"
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.3.2")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$zebchat_kotlin_version")
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        // The native SDK com.zebchat:chat. During development it comes from mavenLocal
+        // (`./gradlew publishToMavenLocal` in sdks/android); the host app adds mavenLocal() then.
+        mavenCentral()
+    }
+}
+
+apply plugin: "com.android.library"
+
+// AGP 9 with built-in Kotlin (`android.builtInKotlin`, on by default) compiles Kotlin itself and
+// refuses the Kotlin Android plugin; it registers the `kotlin` extension when AGP is applied.
+// Everywhere else (AGP 8, or AGP 9 with built-in Kotlin off) the plugin is applied the classic way.
+if (project.extensions.findByName("kotlin") == null) {
+    apply plugin: "kotlin-android"
+}
+
+android {
+    namespace = "com.zebchat.flutter"
+
+    compileSdk = 35
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main.java.srcDirs += "src/main/kotlin"
+    }
+
+    defaultConfig {
+        minSdk = 23
+    }
+}
+
+// `kotlinOptions {}` is an error in Kotlin 2.2+ and `kotlin { compilerOptions {} }` needs 2.0+:
+// configuring the compile tasks works with every Kotlin version the native SDK supports.
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
+dependencies {
+    // Keep in step with the native SDK release (sdks/android, Maven Central com.zebchat:chat).
+    implementation("com.zebchat:chat:1.0.0")
+}
